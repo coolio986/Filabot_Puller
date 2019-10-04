@@ -984,12 +984,13 @@ static int velocity_cmd(sCmdUart *ptrUart,int argc, char * argv[])
     x=(int64_t)(DIVIDE_WITH_ROUND(rpm*ANGLE_STEPS,60)); //divide with r
 
 
-    stepperCtrl.setVelocity(x);
+    stepperCtrl.setVelocity(-x);
   }
   int64_t y;
-  x=(stepperCtrl.getVelocity()*100 *60)/(ANGLE_STEPS);
+  x=-(stepperCtrl.getVelocity()*100 *60)/(ANGLE_STEPS);
   y=abs(x-((x/100)*100));
-  CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
+  //CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
+  CommandPrintf(ptrUart,"1;velocity;%d.%02d",(int32_t)(x/100),(int32_t)y);
 
   return 0;
 }
@@ -1559,6 +1560,7 @@ uint8_t putch_step_dir(char data)
 void commandsInit(void)
 {
   CommandInit(&UsbUart, kbhit, getChar, putch ,NULL); //set up the UART structure
+        
 
   CommandInit(&HostUart, kbhit_step_dir, getChar_step_dir, putch_step_dir ,NULL); //set up the UART structure for step and dir pins
 
