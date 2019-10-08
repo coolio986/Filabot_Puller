@@ -1015,6 +1015,7 @@ static int increase_rpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 		
 		v = (int64_t)(DIVIDE_WITH_ROUND(x*ANGLE_STEPS,60));
 		v = (int64_t)(DIVIDE_WITH_ROUND(v,100));
+		if (v <= 0) { v = 0;}
 		stepperCtrl.setVelocity(-v);
 		
 		int64_t y;
@@ -1022,6 +1023,27 @@ static int increase_rpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 		y=abs(x-((x/100)*100));
 		//CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
 		CommandPrintf(ptrUart,"1;velocity;%d.%02d",(int32_t)(x/100),(int32_t)y);
+	}
+	else
+	{
+		float rpm;
+		rpm=atof(argv[0]);
+		x=(int64_t)(DIVIDE_WITH_ROUND(rpm*ANGLE_STEPS,60)); //divide with r
+		x = x + 1;
+		
+		int64_t z;
+		z = -stepperCtrl.getVelocity();
+		
+		x = z + x;
+		if (x <= 0) { x = 0;}
+		stepperCtrl.setVelocity(-x);
+		
+		int64_t y;
+		x=-(stepperCtrl.getVelocity()*100 *60)/(ANGLE_STEPS);
+		y=abs(x-((x/100)*100));
+		//CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
+		CommandPrintf(ptrUart,"1;velocity;%d.%02d",(int32_t)(x/100),(int32_t)y);
+		
 	}
 	return 0;
 }
@@ -1039,6 +1061,8 @@ static int decrease_rpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 		
 		v = (int64_t)(DIVIDE_WITH_ROUND(x*ANGLE_STEPS,60));
 		v = (int64_t)(DIVIDE_WITH_ROUND(v,100));
+		
+		if (v <= 0) { v = 0;}
 		stepperCtrl.setVelocity(-v);
 		
 		int64_t y;
@@ -1047,6 +1071,27 @@ static int decrease_rpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 		//CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
 		CommandPrintf(ptrUart,"1;velocity;%d.%02d",(int32_t)(x/100),(int32_t)y);
 		
+	}
+	else
+	{
+		float rpm;
+		rpm=atof(argv[0]);
+		x=(int64_t)(DIVIDE_WITH_ROUND(rpm*ANGLE_STEPS,60)); //divide with r
+		x = x - 1;
+		
+		int64_t z;
+		z = -stepperCtrl.getVelocity();
+		
+		x = z - x;
+
+		if (x <= 0) { x = 0;}
+		stepperCtrl.setVelocity(-x);
+		
+		int64_t y;
+		x=-(stepperCtrl.getVelocity()*100 *60)/(ANGLE_STEPS);
+		y=abs(x-((x/100)*100));
+		//CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
+		CommandPrintf(ptrUart,"1;velocity;%d.%02d",(int32_t)(x/100),(int32_t)y);
 	}
 	return 0;
 }
