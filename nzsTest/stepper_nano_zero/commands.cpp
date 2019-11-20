@@ -18,7 +18,10 @@ sCmdUart UsbUart;
 sCmdUart SerialUart;
 sCmdUart HostUart; //uart on the step/dir pins
 
-unsigned long previousMillis;//for getrpm command
+unsigned long previousMillis;//for PullerRPM command
+int64_t long previousAngle = 0;
+uint64_t long previousPullerTicks = 0;
+bool isCapturing = false;
 
 static int isPowerOfTwo (unsigned int x)
 {
@@ -68,7 +71,8 @@ CMD_STR(move, "moves encoder to absolute angle in degrees 'move 400.1'");
 CMD_STR(velocity, "gets/set velocity in RPMs, example:'velocity 10' moves CCW at 10rpm, 'velocity -10' moves CW at 10rpm");
 CMD_STR(increase_rpm, "increases motor RPM by +1 rpm");
 CMD_STR(decrease_rpm, "decreases motor RPM by -1 rpm");
-CMD_STR(getrpm, "gets rpm of motor output shaft as decimal integer");
+CMD_STR(PullerRPM, "gets rpm of motor output shaft as decimal integer");
+CMD_STR(FilamentLength, "gets current angle of motor output shaft as decimal integer");
 CMD_STR(factoryreset, "resets board to factory defaults");
 CMD_STR(stop, "stops the motion planner");
 CMD_STR(setzero, "set the reference angle to zero");
@@ -90,6 +94,7 @@ CMD_STR(errorpin, "Sets the logic level of error pin")
 CMD_STR(geterror, "gets current error")
 CMD_STR(getsteps, "returns number of steps seen")
 CMD_STR(debug, "enables debug commands out USB")
+CMD_STR(FilamentCapture, "")
 //List of supported commands
 sCommand Cmds[] =
 {
@@ -129,7 +134,8 @@ sCommand Cmds[] =
 	COMMAND(velocity),
 	COMMAND(increase_rpm),
 	COMMAND(decrease_rpm),
-	COMMAND(getrpm),
+	COMMAND(PullerRPM),
+	COMMAND(FilamentLength),
 	COMMAND(factoryreset),
 	COMMAND(stop),
 	COMMAND(setzero),
@@ -151,6 +157,7 @@ sCommand Cmds[] =
 	COMMAND(geterror),
 	COMMAND(getsteps),
 	COMMAND(debug),
+	COMMAND(FilamentCapture),
 	{"",0,""}, //End of list signal
 };
 
@@ -985,13 +992,13 @@ static int velocity_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 	{
 		float rpm;
 		rpm=atof(argv[0]);
-		x=(int64_t)(DIVIDE_WITH_ROUND(rpm*ANGLE_STEPS,60)); //divide with r
+		x=(int64_t)(DIVIDE_WITH_ROUND(rpm*ANGLE_STEPS,60)) * 1.851; //divide with r
 		x = x + 1;
 
 		stepperCtrl.setVelocity(-x);
 	}
 	int64_t y;
-	x=-(stepperCtrl.getVelocity()*100 *60)/(ANGLE_STEPS);
+	x=-((stepperCtrl.getVelocity()*100 *60)/(ANGLE_STEPS)) / 1.851;
 	y=abs(x-((x/100)*100));
 	//CommandPrintf(ptrUart,"Velocity is %d.%02d - %d\n\r",(int32_t)(x/100),(int32_t)y,(int32_t)stepperCtrl.getVelocity());
 	CommandPrintf(ptrUart,"1;velocity;%d.%02d",(int32_t)(x/100),(int32_t)y);
@@ -1095,7 +1102,7 @@ static int decrease_rpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 	}
 	return 0;
 }
-static int getrpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
+static int PullerRPM_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 {
 
 	
@@ -1105,34 +1112,56 @@ static int getrpm_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 			float pos;
 			int32_t x;
 			int32_t y;
-			pos=ANGLE_T0_DEGREES(stepperCtrl.getCurrentAngle());
+			int64_t currentAngle= stepperCtrl.getCurrentAngle();
+			uint64_t angleDifference = abs(abs(currentAngle) - abs(previousAngle));
+			pos=ANGLE_T0_DEGREES(angleDifference);
 			x=int(pos);
 			
 			
 			unsigned long timeDifference = millis() - previousMillis;
-			float rpm = ((float)abs(x) / (float)timeDifference) * 1000 / 6;
+			float rpm = (((float)abs(x) / (float)timeDifference) * 1000 / 6) / (float)1.851; //1.857 is ratio of motor pulley to roller pulley
 			y= abs(((float)rpm - (int32_t)rpm) * 100);
-			//CommandPrintf(ptrUart,"getrpm %d.%02d",(int32_t)rpm, y);
-			
-			Serial5.write("1;getrpm = ");
-			Serial5.write((int32_t)rpm);
-			Serial5.write(".");
-			Serial5.write(y);
-			Serial5.write("\r\n");
-			Serial5.flush();
-			
-			//SerialUSB.print("getrpm ");
-			//SerialUSB.print((int32_t)rpm);
-			//SerialUSB.print(".");
-			//SerialUSB.println(y);
-			
-			
+			//CommandPrintf(ptrUart,"PullerRPM %d.%02d",(int32_t)rpm, y);
+			CommandPrintf(ptrUart,"1;PullerRPM;%d.%02d",(int32_t)rpm, y);
+			previousAngle = currentAngle;
 		}
 
 		previousMillis = millis();
 		
-		stepperCtrl.setZero();
 		
+		//stepperCtrl.setZero();
+		
+	}
+	
+	return 0;
+}
+
+static int FilamentLength_cmd(sCmdUart *ptrUart,int argc, char * argv[])
+{
+	if (argc == 0){
+		if (previousMillis != 0)
+		{
+			float pos;
+			int32_t x;
+			int32_t y;
+			int32_t remain;
+			int64_t currentAngle = abs(stepperCtrl.getCurrentAngle());
+			pos=ANGLE_T0_DEGREES(currentAngle);
+			
+			
+			if (isCapturing)
+			{
+				x=int(pos) - previousPullerTicks;
+				
+			}
+			else
+			{
+				x = previousPullerTicks;
+			}
+			float filamentLength = x * 0.0002953125;
+			remain = abs(((float)filamentLength - (int32_t)filamentLength) * 100);
+			CommandPrintf(ptrUart,"1;FilamentLength;%d.%02d",(int32_t)filamentLength, remain );
+		}
 	}
 	
 	return 0;
@@ -1609,6 +1638,29 @@ static int testcal_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 	return 0;
 }
 
+static int FilamentCapture_cmd(sCmdUart *ptrUart,int argc, char * argv[])
+{
+	if (argc != 0)
+	{
+		isCapturing = atoi(argv[0]) == 1 ? true : false;
+	}
+	
+	if (isCapturing)
+	{
+		previousPullerTicks = ANGLE_T0_DEGREES(abs(stepperCtrl.getCurrentAngle())); 
+	}
+	else
+	{
+	
+	int64_t currentAngle = abs(stepperCtrl.getCurrentAngle());
+	float pos=ANGLE_T0_DEGREES(currentAngle);
+	previousPullerTicks = int(pos) - previousPullerTicks;
+	}
+	 
+
+	 
+	
+}
 
 
 

@@ -200,7 +200,7 @@ typedef enum {
 //TC4 is used for step count
 //TC5 is use for timing the control loop
 
-
+#define DISABLE_LCD
 //mechaduio and Arduino Zero has defined serial ports differently than NZS
 #ifdef MECHADUINO_HARDWARE
 #warning "Compiling source for Mechaduino NOT NZS"
