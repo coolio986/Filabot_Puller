@@ -1121,7 +1121,6 @@ static int PullerRPM_cmd(sCmdUart *ptrUart,int argc, char * argv[])
 			unsigned long timeDifference = millis() - previousMillis;
 			float rpm = (((float)abs(x) / (float)timeDifference) * 1000 / 6) / (float)1.851; //1.857 is ratio of motor pulley to roller pulley
 			y= abs(((float)rpm - (int32_t)rpm) * 100);
-			//CommandPrintf(ptrUart,"PullerRPM %d.%02d",(int32_t)rpm, y);
 			CommandPrintf(ptrUart,"1;PullerRPM;%d.%02d",(int32_t)rpm, y);
 			previousAngle = currentAngle;
 		}
@@ -1743,5 +1742,9 @@ int commandsProcess(void)
 	#ifdef CMD_SERIAL_PORT
 	CommandProcess(&SerialUart,Cmds,' ',COMMANDS_PROMPT);
 	#endif
-	return CommandProcess(&UsbUart,Cmds,' ',COMMANDS_PROMPT);
+	if (SerialUSB.dtr())
+	{
+		return CommandProcess(&UsbUart,Cmds,' ',COMMANDS_PROMPT);
+	}
+	
 }

@@ -283,7 +283,7 @@ unsigned int CommandParse(sCmdUart *ptrUart,sCommand *ptrCmds, char *str, char d
 		i=i+1;
 		memcpy(&cmd_list, &ptrCmds[i], sizeof(sCommand));
 	}
-	CommandPrintf(ptrUart,PSTR("Unknown command (try 'help')\n\r"));
+	//CommandPrintf(ptrUart,PSTR("1;Unknown;Command Unknown"));
 	return -1;
 }
 
